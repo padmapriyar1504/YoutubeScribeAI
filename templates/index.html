@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Audio Downloader, Transcriber, and Summarizer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px; 
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        #result {
+            margin-top: 20px;
+        }
+        .info, .transcription, .summary {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>YouTube Audio Downloader, Transcriber, and Summarizer</h1>
+        <form id="processForm">
+            <input type="text" id="url" name="url" placeholder="Enter YouTube URL" required>
+            <button type="submit">Start Process</button>
+        </form>
+        <div id="result">
+            <div id="info" class="info"></div>
+            <div id="transcription" class="transcription"></div>
+            <div id="summary" class="summary"></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const form = document.getElementById("processForm");
+        const infoDiv = document.getElementById("info");
+        const transcriptionDiv = document.getElementById("transcription");
+        const summaryDiv = document.getElementById("summary");
+
+        form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const url = document.getElementById("url").value;
+            infoDiv.textContent = "Processing...";
+            transcriptionDiv.textContent = "";
+            summaryDiv.textContent = "";
+
+            socket.emit("process_url", { url });
+        });
+
+        socket.on("update", (data) => {
+            if (data.step === "info") {
+                infoDiv.textContent = `Title: ${data.title}\nDescription: ${data.description}`;
+            } else if (data.step === "transcription") {
+                transcriptionDiv.textContent = `Transcription: ${data.transcription}`;
+            } else if (data.step === "summary") {
+                summaryDiv.textContent = `Summary: ${data.summary}`;
+            }
+        });
+
+        socket.on("error", (error) => {
+            alert(error.message);
+        });
+    </script>
+</body>
+</html>
