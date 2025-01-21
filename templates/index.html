@@ -7,7 +7,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px; 
+            margin: 20px;
         }
         .container {
             max-width: 600px;
@@ -21,13 +21,20 @@
         #result {
             margin-top: 20px;
         }
-        .info, .transcription, .summary {
+        .info, .transcription, .topics, .summary {
             margin-top: 10px;
             padding: 10px;
             border: 1px solid #ddd;
             background-color: #f9f9f9;
             white-space: pre-wrap;
             font-family: monospace;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 10px;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
@@ -42,6 +49,7 @@
         <div id="result">
             <div id="info" class="info"></div>
             <div id="transcription" class="transcription"></div>
+            <div id="topics" class="topics"></div>
             <div id="summary" class="summary"></div>
         </div>
     </div>
@@ -51,6 +59,7 @@
         const form = document.getElementById("processForm");
         const infoDiv = document.getElementById("info");
         const transcriptionDiv = document.getElementById("transcription");
+        const topicsDiv = document.getElementById("topics");
         const summaryDiv = document.getElementById("summary");
 
         form.addEventListener("submit", (e) => {
@@ -58,6 +67,7 @@
             const url = document.getElementById("url").value;
             infoDiv.textContent = "Processing...";
             transcriptionDiv.textContent = "";
+            topicsDiv.textContent = "";
             summaryDiv.textContent = "";
 
             socket.emit("process_url", { url });
@@ -67,14 +77,19 @@
             if (data.step === "info") {
                 infoDiv.textContent = `Title: ${data.title}\nDescription: ${data.description}`;
             } else if (data.step === "transcription") {
-                transcriptionDiv.textContent = `Transcription: ${data.transcription}`;
+                transcriptionDiv.textContent = "Transcription:\n" + 
+                    data.transcription.map(segment => `${segment.time}: ${segment.text}`).join("\n");
+            } else if (data.step === "topics") {
+                topicsDiv.innerHTML = "<h3>Key Topics Timeline:</h3><ul>" +
+                    data.key_topics.map(topic => `<li>${topic}</li>`).join("") +
+                    "</ul>";
             } else if (data.step === "summary") {
-                summaryDiv.textContent = `Summary: ${data.summary}`;
+                summaryDiv.textContent = "Summary:\n" + data.summary;
             }
         });
 
-        socket.on("error", (error) => {
-            alert(error.message);
+        socket.on("error", (data) => {
+            alert(data.message);
         });
     </script>
 </body>
