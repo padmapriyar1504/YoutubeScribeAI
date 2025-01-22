@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Processor with Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            height: 100vh;
+            background: linear-gradient(rgba(0, 0, 0, 0.568), rgba(0, 0, 0, 0.563)), url('/static/imag.jpg');
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-position: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+        input, button, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        #result {
+            margin-top: 20px;
+        }
+        .info, .transcription, .summary, .timeline {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #5451517c;
+            background-color: #fff9f99e;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .chatbox {
+            margin-top: 20px;
+            border: 1px solid #5958586c;
+            padding: 10px;
+            background-color: #66636385;
+        }
+        .messages {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #ffffff84;
+        }
+        .user-message {
+            color: rgba(218, 70, 70, 0.578);
+            margin-bottom: 5px;
+        }
+        .bot-message {
+            color: rgba(0, 0, 0, 0.556);
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="font-size: 50px; font-weight: bold; color: #ffffffe4; text-align: center; text-transform: uppercase; letter-spacing: 3px; text-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);">
+            YouTubeScribeAI
+        </h1>
+
+        <form id="processForm">
+            <input type="text" id="url" name="url" placeholder="Enter YouTube URL" required>
+            <button type="submit">Start Process</button>
+        </form>
+        <div id="result">
+            <div id="info" class="info"></div>
+            <div id="transcription" class="transcription"></div>
+            <div id="timeline" class="timeline"></div>
+            <div id="summary" class="summary"></div>
+        </div>
+
+        <div class="chatbox">
+            <h2 style="color:white">Chat with the video</h2>
+            <div id="messages" class="messages"></div>
+            <textarea id="question" placeholder="Ask a question..."></textarea>
+            <button id="askButton">Ask</button>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById("processForm");
+        const infoDiv = document.getElementById("info");
+        const transcriptionDiv = document.getElementById("transcription");
+        const timelineDiv = document.getElementById("timeline");
+        const summaryDiv = document.getElementById("summary");
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const url = document.getElementById("url").value;
+            infoDiv.textContent = "Processing...";
+            transcriptionDiv.textContent = "";
+            timelineDiv.textContent = "";
+            summaryDiv.textContent = "";
+
+            try {
+                const response = await fetch("/process_url", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    infoDiv.textContent = `Title: ${data.title}\nDescription: ${data.description}`;
+                    transcriptionDiv.textContent = `Transcription:\n${data.transcription.map(
+                        t => `${t.time}: ${t.text}`
+                    ).join("\n")}`;
+                    timelineDiv.textContent = `Timeline:\n${data.key_topics.join("\n")}`;
+                    summaryDiv.textContent = `Summary:\n${data.summary}`;
+                } else {
+                    infoDiv.textContent = `Error: ${data.error || "An unknown error occurred."}`;
+                }
+            } catch (err) {
+                infoDiv.textContent = `Error: ${err.message}`;
+            }
+        });
+
+        const askButton = document.getElementById("askButton");
+        const questionInput = document.getElementById("question");
+        const messagesDiv = document.getElementById("messages");
+
+        askButton.addEventListener("click", async () => {
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            const userMessage = document.createElement("div");
+            userMessage.textContent = `User: ${question}`;
+            userMessage.className = "user-message";
+            messagesDiv.appendChild(userMessage);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            questionInput.value = "";
+
+            try {
+                const response = await fetch("/chatbot", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        question,
+                        title: infoDiv.textContent.split('\n')[0].replace("Title: ", ""),
+                        description: infoDiv.textContent.split('\n')[1]?.replace("Description: ", ""),
+                        transcription: transcriptionDiv.textContent.replace("Transcription:\n", "")
+                    }),
+                });
+
+                const data = await response.json();
+
+                const botMessage = document.createElement("div");
+                botMessage.textContent = `Bot (${data.source}): ${data.answer}`;
+                botMessage.className = "bot-message";
+                messagesDiv.appendChild(botMessage);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            } catch (err) {
+                const errorMessage = document.createElement("div");
+                errorMessage.textContent = `Error: ${err.message}`;
+                errorMessage.className = "bot-message";
+                messagesDiv.appendChild(errorMessage);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        });
+    </script>
+</body>
+</html>
