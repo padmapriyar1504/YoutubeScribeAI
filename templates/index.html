@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Audio Downloader, Transcriber, and Summarizer</title>
+    <title>YouTube Video Processor with Chatbot</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,7 +13,7 @@
             max-width: 600px;
             margin: auto;
         }
-        input, button {
+        input, button, textarea {
             width: 100%;
             padding: 10px;
             margin: 10px 0;
@@ -21,120 +21,42 @@
         #result {
             margin-top: 20px;
         }
-        .info, .transcription, .topics, .summary {
+        .info, .transcription, .summary,.timeline{
             margin-top: 10px;
             padding: 10px;
-            border: 1px solid #ddd;
-            background-color: #f9f9f9;
+            border: 1px solid #5451517c;
+            background-color: #fff9f99e;
             white-space: pre-wrap;
             font-family: monospace;
         }
-        ul {
-            list-style-type: none;
-            padding: 0;
+        .chatbox {
+            margin-top: 20px;
+            border: 1px solid #5958586c;
+            padding: 10px;
+            background-color: #66636385;
         }
-        li {
+        .messages {
+            max-height: 300px;
+            overflow-y: auto;
             margin-bottom: 10px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #ffffff84;
+        }
+        .user-message {
+            color: rgba(218, 70, 70, 0.578);
+            margin-bottom: 5px;
+        }
+        .bot-message {
+            color: rgba(0, 0, 0, 0.556);
+            margin-bottom: 5px;
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 </head>
-<body>
-    <!-- <div class="container">
-        <h1>YouTube Audio Downloader, Transcriber, and Summarizer</h1>
-        <form id="processForm">
-            <input type="text" id="url" name="url" placeholder="Enter YouTube URL" required>
-            <button type="submit">Start Process</button>
-        </form>
-        <div id="result">
-            <div id="info" class="info"></div>
-            <div id="transcription" class="transcription"></div>
-            <div id="topics" class="topics"></div>
-            <div id="summary" class="summary"></div>
-        </div>
-        <hr>
-        <div id="chatbot">
-            <h3>Chat with the Video</h3>
-            <textarea id="chatInput" placeholder="Ask a question about the video..." rows="3"></textarea>
-            <button id="sendChat">Send</button>
-            <div id="chatOutput"></div>
-        </div>
-    </div>
-
-    <script>
-        const socket = io();
-        const form = document.getElementById("processForm");
-        const infoDiv = document.getElementById("info");
-        const transcriptionDiv = document.getElementById("transcription");
-        const topicsDiv = document.getElementById("topics");
-        const summaryDiv = document.getElementById("summary");
-
-        const chatInput = document.getElementById("chatInput");
-    const sendChat = document.getElementById("sendChat");
-    const chatOutput = document.getElementById("chatOutput");
-
-    let videoContext = { title: "", description: "", transcription: "" };
-
-        form.addEventListener("submit", (e) => {
-            e.preventDefault();
-            const url = document.getElementById("url").value;
-            infoDiv.textContent = "Processing...";
-            transcriptionDiv.textContent = "";
-            topicsDiv.textContent = "";
-            summaryDiv.textContent = "";
-
-            socket.emit("process_url", { url });
-        });
-
-        socket.on("update", (data) => {
-        if (data.step === "info") {
-            videoContext.title = data.title;
-            videoContext.description = data.description;
-            infoDiv.textContent = `Title: ${data.title}\nDescription: ${data.description}`;
-        } else if (data.step === "transcription") {
-            videoContext.transcription = data.transcription.map(segment => segment.text).join(" ");
-            transcriptionDiv.textContent = "Transcription:\n" + 
-                data.transcription.map(segment => `${segment.time}: ${segment.text}`).join("\n");
-        } else if (data.step === "topics") {
-            topicsDiv.innerHTML = "<h3>Key Topics Timeline:</h3><ul>" +
-                data.key_topics.map(topic => `<li>${topic}</li>`).join("") +
-                "</ul>";
-        } else if (data.step === "summary") {
-            summaryDiv.textContent = "Summary:\n" + data.summary;
-        }
-    });
-
-    socket.on("error", (data) => {
-        alert(data.message);
-    });
-
-    sendChat.addEventListener("click", () => {
-        const question = chatInput.value.trim();
-        if (!question) return;
-
-        chatOutput.textContent = "Fetching answer...";
-        fetch("/chatbot", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                question: question,
-                title: videoContext.title,
-                description: videoContext.description,
-                transcription: videoContext.transcription,
-            }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            chatOutput.innerHTML += `<p><b>Q:</b> ${question}</p><p><b>A:</b> ${data.answer}</p>`;
-            chatInput.value = "";
-        })
-        .catch(err => {
-            chatOutput.textContent = "Error fetching answer.";
-        });
-    });
-    </script>  -->
+<body style="margin: 0; height: 100vh; background: linear-gradient(rgba(0, 0, 0, 0.568), rgba(0, 0, 0, 0.563)), url('/static/imag.jpg'); background-size: cover; background-repeat: no-repeat; background-attachment: fixed; background-position: center;">
     <div class="container">
-        <h1>YouTube Audio Downloader, Transcriber, and Summarizer</h1>
+        <h1 style="font-family: 'Arial', sans-serif; font-size: 50px; font-weight: bold; color: #ffffffe4; text-align: center; margin-top: 20px; text-transform: uppercase; letter-spacing: 3px; text-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);">YouTubeScribeAI</h1>
+
         <form id="processForm">
             <input type="text" id="url" name="url" placeholder="Enter YouTube URL" required>
             <button type="submit">Start Process</button>
@@ -142,14 +64,15 @@
         <div id="result">
             <div id="info" class="info"></div>
             <div id="transcription" class="transcription"></div>
+            <div id="timeline" class="timeline"></div> <!-- Added timeline section -->
             <div id="summary" class="summary"></div>
         </div>
-        <hr>
-        <div id="chatbot">
-            <h3>Chat with the Video</h3>
-            <textarea id="chatInput" placeholder="Ask a question about the video..." rows="3"></textarea>
-            <button id="sendChat">Send</button>
-            <div id="chatOutput"></div>
+
+        <div class="chatbox">
+            <h2 style="color:white">Chat with the video</h2>
+            <div id="messages" class="messages"></div>
+            <textarea id="question" placeholder="Ask a question..."></textarea>
+            <button id="askButton">Ask</button>
         </div>
     </div>
 
@@ -157,65 +80,89 @@
         const form = document.getElementById("processForm");
         const infoDiv = document.getElementById("info");
         const transcriptionDiv = document.getElementById("transcription");
+        const timelineDiv = document.getElementById("timeline"); // New timeline div
         const summaryDiv = document.getElementById("summary");
 
-        const chatInput = document.getElementById("chatInput");
-        const sendChat = document.getElementById("sendChat");
-        const chatOutput = document.getElementById("chatOutput");
-
-        let videoContext = { title: "", description: "", transcription: "" };
-
-        form.addEventListener("submit", (e) => {
+        form.addEventListener("submit", async (e) => {
             e.preventDefault();
+
             const url = document.getElementById("url").value;
             infoDiv.textContent = "Processing...";
             transcriptionDiv.textContent = "";
+            timelineDiv.textContent = ""; // Clear timeline content
             summaryDiv.textContent = "";
 
-            fetch("/process_url", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url }),
-            })
-                .then(response => response.json())
-                .then(data => {
-                    videoContext.title = data.title || "";
-                    videoContext.description = data.description || "";
-                    videoContext.transcription = data.transcription || "";
+            try {
+                const response = await fetch("/process_url", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
                     infoDiv.textContent = `Title: ${data.title}\nDescription: ${data.description}`;
-                    transcriptionDiv.textContent = `Transcription:\n${data.transcription}`;
+                    transcriptionDiv.textContent = `Transcription:\n${data.transcription.map(
+                        t => `${t.time}: ${t.text}`
+                    ).join("\n")}`;
+                    timelineDiv.textContent = `Timeline:\n${data.key_topics.join("\n")}`; // Display timeline
                     summaryDiv.textContent = `Summary:\n${data.summary}`;
-                })
-                .catch(err => alert("Error processing video."));
+                } else {
+                    infoDiv.textContent = `Error: ${data.error || "An unknown error occurred."}`;
+                }
+            } catch (err) {
+                infoDiv.textContent = `Error: ${err.message}`;
+            }
         });
 
-        sendChat.addEventListener("click", () => {
-            const question = chatInput.value.trim();
+        // Chatbot functionality
+        const askButton = document.getElementById("askButton");
+        const questionInput = document.getElementById("question");
+        const messagesDiv = document.getElementById("messages");
+
+        askButton.addEventListener("click", async () => {
+            const question = questionInput.value.trim();
             if (!question) return;
 
-            chatOutput.textContent = "Fetching answer...";
-            fetch("/chatbot", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    question,
-                    title: videoContext.title,
-                    description: videoContext.description,
-                    transcription: videoContext.transcription,
-                }),
-            })
-                .then(response => response.json())
-                .then(data => {
-                    chatOutput.innerHTML += `<p><b>Q:</b> ${question}</p>
-                                             <p><b>A:</b> ${data.answer} 
-                                             <i>(Source: ${data.source})</i></p>`;
-                    chatInput.value = "";
-                })
-                .catch(err => {
-                    chatOutput.textContent = "Error fetching answer. Please try again.";
+            // Display user question
+            const userMessage = document.createElement("div");
+            userMessage.textContent = `User: ${question}`;
+            userMessage.className = "user-message";
+            messagesDiv.appendChild(userMessage);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            questionInput.value = "";
+
+            try {
+                const response = await fetch("/chatbot", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        question,
+                        title: infoDiv.textContent.split('\n')[0].replace("Title: ", ""),
+                        description: infoDiv.textContent.split('\n')[1]?.replace("Description: ", ""),
+                        transcription: transcriptionDiv.textContent.replace("Transcription:\n", "")
+                    }),
                 });
+
+                const data = await response.json();
+
+                // Display bot response
+                const botMessage = document.createElement("div");
+                botMessage.textContent = `Bot (${data.source}): ${data.answer}`;
+                botMessage.className = "bot-message";
+                messagesDiv.appendChild(botMessage);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            } catch (err) {
+                const errorMessage = document.createElement("div");
+                errorMessage.textContent = `Error: ${err.message}`;
+                errorMessage.className = "bot-message";
+                messagesDiv.appendChild(errorMessage);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
         });
     </script>
-    
 </body>
+
 </html>

@@ -10,7 +10,6 @@ from pydub import AudioSegment
 from keybert import KeyBERT
 import openai
 
-
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -21,7 +20,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 VOSK_MODEL_PATH = "vosk-model-small-en-us-0.15"
 
 # Replace with your Gemini API key and openai api key here
-
 
 # Initialize KeyBERT model
 kw_model = KeyBERT()
@@ -88,6 +86,73 @@ def transcribe_audio(audio_file, model_path):
 
     return transcription_by_minute
 
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route('/process_url', methods=['POST'])
+def process_url():
+    try:
+        # Get the URL from the request
+        data = request.get_json()
+        url = data.get("url")
+        if not url:
+            return jsonify({"error": "No URL provided"}), 400
+
+        app.logger.info(f"Processing URL: {url}")
+
+        # Step 1: Extract video info using yt-dlp
+        info_command = ["yt-dlp", "--dump-json", url]
+        info_result = subprocess.run(info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        
+        if info_result.returncode != 0:
+            app.logger.error(f"yt-dlp info error: {info_result.stderr}")
+            return jsonify({"error": "Failed to fetch video information."}), 500
+
+        video_info = json.loads(info_result.stdout)
+        title = video_info.get("title", "unknown_title").replace(" ", "_")
+        description = video_info.get("description", "No description available.")
+
+        app.logger.info(f"Video Title: {title}")
+        app.logger.info(f"Video Description: {description}")
+
+        # Step 2: Download audio as WAV
+        wav_file = os.path.join(UPLOAD_FOLDER, f"{title}.wav")
+        audio_command = [
+            "yt-dlp", "-f", "bestaudio", "--extract-audio", "--audio-format", "wav",
+            "-o", wav_file, url
+        ]
+        audio_result = subprocess.run(audio_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        if audio_result.returncode != 0:
+            app.logger.error(f"yt-dlp audio error: {audio_result.stderr}")
+            return jsonify({"error": "Failed to download audio."}), 500
+
+        # Step 3: Transcribe audio using Vosk
+        transcription_by_minute = transcribe_audio(wav_file, VOSK_MODEL_PATH)
+
+        # Step 4: Extract key topics
+        timeline = extract_key_topics(transcription_by_minute)
+
+        # Step 5: Generate a summary
+        full_transcription = " ".join([segment["text"] for segment in transcription_by_minute])
+        summary = summarize_text(full_transcription)
+
+        # Return all the results to the frontend
+        return jsonify({
+            "success": True,
+            "title": title,
+            "description": description,
+            "transcription": transcription_by_minute,
+            "key_topics": timeline,
+            "summary": summary
+        }), 200
+
+    except Exception as e:
+        app.logger.error(f"Unexpected error: {str(e)}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+
 
 def extract_top_keyword(text):
     """
@@ -107,58 +172,6 @@ def extract_key_topics(transcription_by_minute):
         timeline.append(f"{segment['time']}: {top_keyword}")
     return timeline
 
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-
-@socketio.on("process_url")
-def process_url(data):
-    try:
-        url = data.get("url")
-        if not url:
-            emit("error", {"message": "No URL provided."})
-            return
-
-        # Extract video info
-        info_command = ["yt-dlp", "--dump-json", url]
-        result = subprocess.run(info_command, stdout=subprocess.PIPE, check=True, text=True)
-        video_info = json.loads(result.stdout)
-
-        title = video_info.get("title", "unknown_title").replace(" ", "_")
-        description = video_info.get("description", "No description available.")
-        emit("update", {"step": "info", "title": title, "description": description})
-
-        # Download audio
-        wav_file = os.path.join(UPLOAD_FOLDER, f"{title}.wav")
-        audio_command = [
-            "yt-dlp", "-f", "bestaudio", "--extract-audio", "--audio-format", "wav",
-            "-o", wav_file, url
-        ]
-        subprocess.run(audio_command, check=True)
-
-        # Transcription
-        transcription_by_minute = transcribe_audio(wav_file, VOSK_MODEL_PATH)
-        emit("update", {"step": "transcription", "transcription": transcription_by_minute})
-
-        # Key Topic Extraction
-        timeline = extract_key_topics(transcription_by_minute)
-        emit("update", {"step": "topics", "key_topics": timeline})
-
-        # Summarization
-        full_transcription = " ".join([segment["text"] for segment in transcription_by_minute])
-        summary = summarize_text(full_transcription)
-        emit("update", {"step": "summary", "summary": summary})
-
-    except subprocess.CalledProcessError as e:
-        emit("error", {"message": f"Error downloading audio: {e}"})
-    except json.JSONDecodeError:
-        emit("error", {"message": "Failed to parse video information."})
-    except Exception as e:
-        emit("error", {"message": str(e)})
-
-
 def summarize_text(transcription_text):
     """
     Summarizes the transcription text using Gemini API.
@@ -177,45 +190,6 @@ def summarize_text(transcription_text):
         return summary
     else:
         raise RuntimeError(f"Error summarizing text: {response.status_code}, {response.text}")
-
-
-
-
-
-
-
-
-
-# def fetch_answer_from_gemini(question, context):
-#     video_content = f"Context: {context}\nQuestion: {question}\nAnswer:"
-#     headers = {"Content-Type": "application/json"}
-#     payload = {"contents": [{"parts": [{"text": video_content}]}]}
-#     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-
-#     response = requests.post(url, headers=headers, json=payload)
-
-#     if response.status_code == 200:
-#         response_data = response.json()
-#         answer = response_data["candidates"][0]["content"]["parts"][0]["text"]
-#         return answer
-#     else:
-#         return f"Error: {response.status_code}, {response.text}"
-
-
-
-# @app.route("/chatbot", methods=["POST"])
-# def chatbot():
-#     data = request.json
-#     question = data.get("question")
-#     title = data.get("title", "")
-#     description = data.get("description", "")
-#     transcription = data.get("transcription", "")
-    
-#     context = f"{title}\n{description}\n{transcription}"
-#     answer = fetch_answer_from_gemini(question, context)
-#     return jsonify({"answer": answer})
-
-
 
 OUT_OF_CONTEXT_PHRASES = [
     "answer not provided in text",
@@ -276,54 +250,6 @@ OUT_OF_CONTEXT_PHRASES = [
     "does not describe"
 ]
 
-# def fetch_answer_from_gemini(question, context, general=False):
-#     if general:
-#         # Use a fallback model for general chatbot queries
-#         model_type = "chat-bison-001"  # Replace with a valid general-purpose model from ListModels
-#     else:
-#         model_type = "gemini-1.5-flash"  # Use this for video-context queries
-    
-#     video_content = f"Context: {context}\nQuestion: {question}\nAnswer:" if not general else f"Question: {question}\nAnswer:"
-#     headers = {"Content-Type": "application/json"}
-#     payload = {"contents": [{"parts": [{"text": video_content}]}]}
-#     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_type}:generateContent?key={GEMINI_API_KEY}"
-
-#     response = requests.post(url, headers=headers, json=payload)
-
-#     if response.status_code == 200:
-#         response_data = response.json()
-#         try:
-#             answer = response_data["candidates"][0]["content"]["parts"][0]["text"]
-#             return answer
-#         except (KeyError, IndexError):
-#             return "Unable to parse the response from Gemini API."
-#     elif response.status_code == 404:
-#         return "Model not found or unsupported. Please check the API and model configuration."
-#     else:
-#         return f"Error: {response.status_code}, {response.text}"
-
-
-
-# @app.route("/chatbot", methods=["POST"])
-# def chatbot():
-#     data = request.json
-#     question = data.get("question")
-#     title = data.get("title", "")
-#     description = data.get("description", "")
-#     transcription = data.get("transcription", "")
-    
-#     context = f"{title}\n{description}\n{transcription}"
-#     answer = fetch_answer_from_gemini(question, context)
-    
-#     # Check if the answer is out of context or an error response
-#     if any(phrase in answer.lower() for phrase in OUT_OF_CONTEXT_PHRASES) or "error:" in answer.lower():
-#         # Switch to general chatbot
-#         answer = fetch_answer_from_gemini(question, context="", general=True)
-#         source = "general chatbot"
-#     else:
-#         source = "video context"
-    
-#     return jsonify({"answer": answer, "source": source})
 
 def fetch_answer_from_gemini(question, context, general=False):
     """
