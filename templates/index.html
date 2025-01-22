@@ -40,7 +40,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 </head>
 <body>
-    <div class="container">
+    <!-- <div class="container">
         <h1>YouTube Audio Downloader, Transcriber, and Summarizer</h1>
         <form id="processForm">
             <input type="text" id="url" name="url" placeholder="Enter YouTube URL" required>
@@ -52,6 +52,13 @@
             <div id="topics" class="topics"></div>
             <div id="summary" class="summary"></div>
         </div>
+        <hr>
+        <div id="chatbot">
+            <h3>Chat with the Video</h3>
+            <textarea id="chatInput" placeholder="Ask a question about the video..." rows="3"></textarea>
+            <button id="sendChat">Send</button>
+            <div id="chatOutput"></div>
+        </div>
     </div>
 
     <script>
@@ -61,6 +68,12 @@
         const transcriptionDiv = document.getElementById("transcription");
         const topicsDiv = document.getElementById("topics");
         const summaryDiv = document.getElementById("summary");
+
+        const chatInput = document.getElementById("chatInput");
+    const sendChat = document.getElementById("sendChat");
+    const chatOutput = document.getElementById("chatOutput");
+
+    let videoContext = { title: "", description: "", transcription: "" };
 
         form.addEventListener("submit", (e) => {
             e.preventDefault();
@@ -74,23 +87,135 @@
         });
 
         socket.on("update", (data) => {
-            if (data.step === "info") {
-                infoDiv.textContent = `Title: ${data.title}\nDescription: ${data.description}`;
-            } else if (data.step === "transcription") {
-                transcriptionDiv.textContent = "Transcription:\n" + 
-                    data.transcription.map(segment => `${segment.time}: ${segment.text}`).join("\n");
-            } else if (data.step === "topics") {
-                topicsDiv.innerHTML = "<h3>Key Topics Timeline:</h3><ul>" +
-                    data.key_topics.map(topic => `<li>${topic}</li>`).join("") +
-                    "</ul>";
-            } else if (data.step === "summary") {
-                summaryDiv.textContent = "Summary:\n" + data.summary;
-            }
+        if (data.step === "info") {
+            videoContext.title = data.title;
+            videoContext.description = data.description;
+            infoDiv.textContent = `Title: ${data.title}\nDescription: ${data.description}`;
+        } else if (data.step === "transcription") {
+            videoContext.transcription = data.transcription.map(segment => segment.text).join(" ");
+            transcriptionDiv.textContent = "Transcription:\n" + 
+                data.transcription.map(segment => `${segment.time}: ${segment.text}`).join("\n");
+        } else if (data.step === "topics") {
+            topicsDiv.innerHTML = "<h3>Key Topics Timeline:</h3><ul>" +
+                data.key_topics.map(topic => `<li>${topic}</li>`).join("") +
+                "</ul>";
+        } else if (data.step === "summary") {
+            summaryDiv.textContent = "Summary:\n" + data.summary;
+        }
+    });
+
+    socket.on("error", (data) => {
+        alert(data.message);
+    });
+
+    sendChat.addEventListener("click", () => {
+        const question = chatInput.value.trim();
+        if (!question) return;
+
+        chatOutput.textContent = "Fetching answer...";
+        fetch("/chatbot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                question: question,
+                title: videoContext.title,
+                description: videoContext.description,
+                transcription: videoContext.transcription,
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            chatOutput.innerHTML += `<p><b>Q:</b> ${question}</p><p><b>A:</b> ${data.answer}</p>`;
+            chatInput.value = "";
+        })
+        .catch(err => {
+            chatOutput.textContent = "Error fetching answer.";
+        });
+    });
+    </script>  -->
+    <div class="container">
+        <h1>YouTube Audio Downloader, Transcriber, and Summarizer</h1>
+        <form id="processForm">
+            <input type="text" id="url" name="url" placeholder="Enter YouTube URL" required>
+            <button type="submit">Start Process</button>
+        </form>
+        <div id="result">
+            <div id="info" class="info"></div>
+            <div id="transcription" class="transcription"></div>
+            <div id="summary" class="summary"></div>
+        </div>
+        <hr>
+        <div id="chatbot">
+            <h3>Chat with the Video</h3>
+            <textarea id="chatInput" placeholder="Ask a question about the video..." rows="3"></textarea>
+            <button id="sendChat">Send</button>
+            <div id="chatOutput"></div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById("processForm");
+        const infoDiv = document.getElementById("info");
+        const transcriptionDiv = document.getElementById("transcription");
+        const summaryDiv = document.getElementById("summary");
+
+        const chatInput = document.getElementById("chatInput");
+        const sendChat = document.getElementById("sendChat");
+        const chatOutput = document.getElementById("chatOutput");
+
+        let videoContext = { title: "", description: "", transcription: "" };
+
+        form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const url = document.getElementById("url").value;
+            infoDiv.textContent = "Processing...";
+            transcriptionDiv.textContent = "";
+            summaryDiv.textContent = "";
+
+            fetch("/process_url", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    videoContext.title = data.title || "";
+                    videoContext.description = data.description || "";
+                    videoContext.transcription = data.transcription || "";
+                    infoDiv.textContent = `Title: ${data.title}\nDescription: ${data.description}`;
+                    transcriptionDiv.textContent = `Transcription:\n${data.transcription}`;
+                    summaryDiv.textContent = `Summary:\n${data.summary}`;
+                })
+                .catch(err => alert("Error processing video."));
         });
 
-        socket.on("error", (data) => {
-            alert(data.message);
+        sendChat.addEventListener("click", () => {
+            const question = chatInput.value.trim();
+            if (!question) return;
+
+            chatOutput.textContent = "Fetching answer...";
+            fetch("/chatbot", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    question,
+                    title: videoContext.title,
+                    description: videoContext.description,
+                    transcription: videoContext.transcription,
+                }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    chatOutput.innerHTML += `<p><b>Q:</b> ${question}</p>
+                                             <p><b>A:</b> ${data.answer} 
+                                             <i>(Source: ${data.source})</i></p>`;
+                    chatInput.value = "";
+                })
+                .catch(err => {
+                    chatOutput.textContent = "Error fetching answer. Please try again.";
+                });
         });
     </script>
+    
 </body>
 </html>
