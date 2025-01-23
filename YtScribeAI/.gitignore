@@ -1,0 +1,11 @@
+# Ignore app.py
+app.py
+
+# Ignore the uploads folder
+uploads/
+
+# Ignore all audio files (common extensions)
+*.mp3
+*.wav
+*.flac
+*.m4a
