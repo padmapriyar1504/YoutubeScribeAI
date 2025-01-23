@@ -1,0 +1,16 @@
+# Ignore environment files where API keys may be stored
+.env
+
+# Ignore Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore audio files (e.g., WAV, MP3)
+uploads/
+
+# Ignore temporary files or folders like .DS_Store (Mac specific)
+.DS_Store
+
+# Ignore logs (optional if you want to ignore log files)
+*.log
