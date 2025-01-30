@@ -1,0 +1,8 @@
+flask==2.3.2  # Change to a valid Flask version
+requests==2.32.3
+vosk==0.3.45
+pydub==0.25.1
+keybert==0.8.5
+openai==0.27.8
+flask-socketio==5.5.1
+yt-dlp==2025.1.12
